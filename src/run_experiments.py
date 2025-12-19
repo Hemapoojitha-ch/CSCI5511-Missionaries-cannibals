@@ -254,9 +254,9 @@ if __name__ == '__main__':
 
     # Grid with soldiers
     results_soldiers = run_experiment_grid(
-        n_values=[3, 4, 5, 6],
-        b_values=[2, 3, 4],
-        s_values=[0, 1, 2],
+        n_values=[3, 4],
+        b_values=[2, 3],
+        s_values=[0, 1],
         algorithms=['bfs', 'ucs', 'astar', 'idastar', 'bidirectional'],
         heuristics=[ 'h1', 'h2', 'h3', 'h4', 'h5', 'h6'],
         timeout=120
