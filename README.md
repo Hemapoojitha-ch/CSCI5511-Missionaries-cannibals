@@ -23,6 +23,9 @@ The implementation supports:
 - Clear action descriptions (e.g., "Move 2M, 1C from L to R")
 - Boat position indicator
 
+<img width="693" height="590" alt="image" src="https://github.com/user-attachments/assets/6f8baf15-61f5-4b6d-8db8-d7050c000794" />
+
+
 **Four Search Algorithms**
 - **BFS**: Breadth-First Search (optimal for unit costs)
 - **UCS**: Uniform-Cost Search (optimal for varying costs)
@@ -33,7 +36,6 @@ The implementation supports:
 - Automated experiment runner
 - Performance metrics (time, nodes expanded, solution length)
 - Comparison plots and tables
-- LaTeX-ready results
 
 ## Quick Start
 
@@ -43,6 +45,7 @@ python src/demo.py
 ```
 ## Single Algorithm Execution 
 Run a specific algorithm on custom problem size:
+
 (a). BFS on 3 Missionaries , 3 Cannibals , boat capacity 2     
 ```bash 
 python src/main.py -n 3 -b 2 -a bfs
