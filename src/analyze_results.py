@@ -1,6 +1,5 @@
 """
 Analysis and visualization of experiment results.
-Creates plots and tables for the report.
 """
 
 import json
@@ -11,31 +10,23 @@ from pathlib import Path
 
 
 def load_results(filepath):
-    """Load experiment results from JSON file."""
     with open(filepath, 'r') as f:
         return json.load(f)
 
 
 def create_comparison_table(results, output_path=None):
     """
-    Create a comparison table of algorithm performance.
-    
-    Args:
-        results: List of result dictionaries
-        output_path: Optional path to save table
-        
-    Returns:
-        DataFrame with comparison
+    A comparison table of algorithm performance.
     """
     df = pd.DataFrame(results)
     
-    # Create algorithm key
+    # Creating algorithm key
     df['algo_key'] = df.apply(
         lambda r: f"{r['algorithm']}_{r['heuristic']}" if r['algorithm'] in ['astar', 'idastar'] else r['algorithm'],
         axis=1
     )
-    
-    # Group and aggregate
+
+    # Grouping and aggregating
     summary = df.groupby('algo_key').agg({
         'success': ['sum', 'count'],
         'time': ['mean', 'std', 'min', 'max'],
@@ -46,9 +37,8 @@ def create_comparison_table(results, output_path=None):
     summary.columns = ['_'.join(col).strip() for col in summary.columns.values]
     summary['success_rate'] = (summary['success_sum'] / summary['success_count'] * 100).round(1)
     
-    print("\n" + "="*80)
-    print("ALGORITHM COMPARISON TABLE")
-    print("="*80)
+    print("\nALGORITHM COMPARISON TABLE")
+    print("-"*60)
     print(summary)
     
     if output_path:
@@ -60,16 +50,13 @@ def create_comparison_table(results, output_path=None):
 
 def plot_nodes_vs_n(results, output_path=None):
     """
-    Plot nodes expanded vs problem size (n).
-    
-    Args:
-        results: List of result dictionaries
-        output_path: Optional path to save figure
+    Plot: Nodes expanded vs problem size (n).
     """
     df = pd.DataFrame(results)
-    df = df[df['success'] == True]  # Only successful runs
+    df = df[df['success'] == True] 
     
-    # Create algorithm key
+
+    # Creating algorithm key
     df['algo_key'] = df.apply(
         lambda r: f"{r['algorithm']}-{r['heuristic']}" if r['algorithm'] in ['astar', 'idastar'] else r['algorithm'],
         axis=1
@@ -80,7 +67,7 @@ def plot_nodes_vs_n(results, output_path=None):
     for algo in df['algo_key'].unique():
         algo_data = df[df['algo_key'] == algo]
         
-        # Group by n and b
+        # Grouping by n and b
         for b in sorted(algo_data['b'].unique()):
             b_data = algo_data[algo_data['b'] == b]
             grouped = b_data.groupby('n')['nodes_expanded'].mean()
@@ -105,11 +92,7 @@ def plot_nodes_vs_n(results, output_path=None):
 
 def plot_time_vs_n(results, output_path=None):
     """
-    Plot execution time vs problem size (n).
-    
-    Args:
-        results: List of result dictionaries
-        output_path: Optional path to save figure
+    Plot: Execution time vs problem size (n).
     """
     df = pd.DataFrame(results)
     df = df[df['success'] == True]
@@ -149,10 +132,6 @@ def plot_time_vs_n(results, output_path=None):
 def plot_heuristic_comparison(results, output_path=None):
     """
     Compare different heuristics for A*.
-    
-    Args:
-        results: List of result dictionaries
-        output_path: Optional path to save figure
     """
     df = pd.DataFrame(results)
     df = df[(df['algorithm'] == 'astar') & (df['success'] == True)]
@@ -193,10 +172,6 @@ def plot_heuristic_comparison(results, output_path=None):
 def plot_algorithm_comparison_bar(results, output_path=None):
     """
     Bar chart comparing algorithms across multiple metrics.
-    
-    Args:
-        results: List of result dictionaries
-        output_path: Optional path to save figure
     """
     df = pd.DataFrame(results)
     df = df[df['success'] == True]
@@ -206,7 +181,7 @@ def plot_algorithm_comparison_bar(results, output_path=None):
         axis=1
     )
     
-    # Aggregate by algorithm
+    # Aggregating by algorithm
     agg_data = df.groupby('algo_key').agg({
         'nodes_expanded': 'mean',
         'time': 'mean',
@@ -246,13 +221,6 @@ def plot_algorithm_comparison_bar(results, output_path=None):
 
 
 def create_latex_table(results, output_path=None):
-    """
-    Create a LaTeX-formatted table for the report.
-    
-    Args:
-        results: List of result dictionaries
-        output_path: Optional path to save LaTeX code
-    """
     df = pd.DataFrame(results)
     df['algo_key'] = df.apply(
         lambda r: f"{r['algorithm']}-{r['heuristic']}" if r['algorithm'] in ['astar', 'idastar'] else r['algorithm'],
@@ -284,8 +252,9 @@ def create_latex_table(results, output_path=None):
 
 
 if __name__ == '__main__':
-    # Find most recent results file
-    data_dir = Path('../data')
+    SCRIPT_DIR = Path(__file__).parent  
+    PROJECT_ROOT = SCRIPT_DIR.parent    
+    data_dir = PROJECT_ROOT / 'data'    
     
     if not data_dir.exists():
         print("No data directory found. Run experiments first.")
@@ -297,17 +266,17 @@ if __name__ == '__main__':
         print("No results files found. Run experiments first.")
         exit(1)
     
-    # Load most recent
+    # Loading most recent
     latest_file = max(json_files, key=lambda p: p.stat().st_mtime)
     print(f"Loading results from: {latest_file}")
     
     results = load_results(latest_file)
     
-    # Create output directory for plots
+    # Output directory for plots
     plots_dir = data_dir / 'plots'
     plots_dir.mkdir(exist_ok=True)
     
-    # Generate all analyses
+    # Generating all analyses
     create_comparison_table(results, plots_dir / 'comparison_table.csv')
     plot_nodes_vs_n(results, plots_dir / 'nodes_vs_n.png')
     plot_time_vs_n(results, plots_dir / 'time_vs_n.png')
@@ -315,6 +284,5 @@ if __name__ == '__main__':
     plot_algorithm_comparison_bar(results, plots_dir / 'algorithm_comparison.png')
     create_latex_table(results, plots_dir / 'results_table.tex')
     
-    print(f"\n{'='*70}")
-    print("Analysis complete! Check the plots directory for visualizations.")
-    print(f"{'='*70}")
+    print("\nAnalysis complete! Check the plots directory for visualizations.")
+    print(f"{'-'*60}")

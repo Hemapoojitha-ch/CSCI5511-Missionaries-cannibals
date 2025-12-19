@@ -1,6 +1,6 @@
 """
 Search algorithms for the Missionaries and Cannibals problem.
-Implements: BFS, UCS, A*, and IDA*
+Implements: BFS, UCS, A*, IDA*, and Bidirectional Search
 """
 
 import heapq
@@ -10,11 +10,10 @@ from state import generate_successors
 
 
 class SearchResult:
-    """Container for search algorithm results."""
     
     def __init__(self, success, path=None, actions=None, stats=None):
         """
-        Initialize search result.
+        Initializing search result.
         
         Args:
             success: Boolean indicating if solution was found
@@ -29,27 +28,16 @@ class SearchResult:
     
     def display_solution(self, algorithm_name=""):
         """
-        Display the solution path with visual step-by-step representation.
-        
-        Args:
-            algorithm_name: Name of algorithm used
+        Display the solution path with step-by-step representation.
         """
-        print("\n" + "="*70)
-        print(f"SOLUTION FOUND BY {algorithm_name.upper()}")
-        print("="*70)
+        # print(f"SOLUTION FOUND BY {algorithm_name.upper()}")
         
         if not self.success:
             print("No solution found!")
             return
         
-        print(f"\nSolution Length: {len(self.path) - 1} steps")
-        print(f"Nodes Expanded: {self.stats.get('nodes_expanded', 'N/A')}")
-        print(f"Time Taken: {self.stats.get('time_taken', 0):.4f} seconds")
-        print(f"Total Cost: {self.stats.get('path_cost', 'N/A')}")
-        
-        print("\n" + "="*70)
         print("STEP-BY-STEP SOLUTION")
-        print("="*70)
+        print("-"*60)
         
         # Display initial state
         self.path[0].display_state(step_num=0, action_desc="INITIAL STATE")
@@ -59,12 +47,8 @@ class SearchResult:
             action = self.actions[i-1] if i-1 < len(self.actions) else "Unknown action"
             self.path[i].display_state(step_num=i, action_desc=action)
         
-        print("\n" + "="*70)
-        print("GOAL STATE REACHED!")
-        print("="*70)
-        
         # Display statistics
-        print("\nSearch Statistics:")
+        print("Search Statistics:")
         print(f"  - Algorithm: {algorithm_name}")
         print(f"  - Solution depth: {len(self.path) - 1}")
         print(f"  - Nodes expanded: {self.stats.get('nodes_expanded', 'N/A')}")
@@ -78,20 +62,9 @@ class SearchResult:
 def bfs(initial_state, boat_capacity):
     """
     Breadth-First Search.
-    
-    Explores nodes level by level. Guarantees shortest path in terms of
-    number of steps (when all step costs are equal).
-    
-    Args:
-        initial_state: Starting State object
-        boat_capacity: Boat capacity
-        
-    Returns:
-        SearchResult object
     """
     start_time = time.time()
     
-    # Queue stores: (state, path, actions)
     queue = deque([(initial_state, [initial_state], [])])
     visited = {initial_state.to_tuple()}
     
@@ -104,18 +77,18 @@ def bfs(initial_state, boat_capacity):
         current_state, path, actions = queue.popleft()
         nodes_expanded += 1
         
-        # Check if goal
+        # Checking if goal
         if current_state.is_goal():
             time_taken = time.time() - start_time
             stats = {
                 'nodes_expanded': nodes_expanded,
                 'max_queue_size': max_queue_size,
                 'time_taken': time_taken,
-                'path_cost': len(path) - 1  # Number of steps
+                'path_cost': len(path) - 1
             }
             return SearchResult(True, path, actions, stats)
         
-        # Expand successors
+        # Expanding successors
         for successor, action, cost in generate_successors(current_state, boat_capacity):
             state_tuple = successor.to_tuple()
             if state_tuple not in visited:
@@ -137,24 +110,12 @@ def bfs(initial_state, boat_capacity):
 def ucs(initial_state, boat_capacity):
     """
     Uniform-Cost Search.
-    
-    Expands nodes in order of path cost. Guarantees optimal solution
-    when step costs vary.
-    
-    Args:
-        initial_state: Starting State object
-        boat_capacity: Boat capacity
-        
-    Returns:
-        SearchResult object
     """
     start_time = time.time()
     
-    # Priority queue stores: (cost, counter, state, path, actions)
-    # Counter ensures FIFO ordering for ties
     counter = 0
     pq = [(0, counter, initial_state, [initial_state], [])]
-    visited = {}  # Maps state -> best cost found so far
+    visited = {}
     
     nodes_expanded = 0
     max_queue_size = 1
@@ -165,14 +126,13 @@ def ucs(initial_state, boat_capacity):
         cost, _, current_state, path, actions = heapq.heappop(pq)
         state_tuple = current_state.to_tuple()
         
-        # Skip if we've found a better path to this state
-        if state_tuple in visited and visited[state_tuple] < cost:
+        if state_tuple in visited and visited[state_tuple] <= cost:
             continue
         
         visited[state_tuple] = cost
         nodes_expanded += 1
         
-        # Check if goal
+        # Checking if goal
         if current_state.is_goal():
             time_taken = time.time() - start_time
             stats = {
@@ -183,12 +143,11 @@ def ucs(initial_state, boat_capacity):
             }
             return SearchResult(True, path, actions, stats)
         
-        # Expand successors
+        # Expanding successors
         for successor, action, step_cost in generate_successors(current_state, boat_capacity):
             new_cost = cost + step_cost
             state_tuple = successor.to_tuple()
             
-            # Only add if we haven't seen this state or found a better path
             if state_tuple not in visited or visited[state_tuple] > new_cost:
                 counter += 1
                 new_path = path + [successor]
@@ -208,26 +167,13 @@ def ucs(initial_state, boat_capacity):
 def a_star(initial_state, boat_capacity, heuristic_func):
     """
     A* Search.
-    
-    Expands nodes in order of f(n) = g(n) + h(n), where g(n) is path cost
-    and h(n) is heuristic estimate to goal. Guarantees optimal solution
-    if heuristic is admissible.
-    
-    Args:
-        initial_state: Starting State object
-        boat_capacity: Boat capacity
-        heuristic_func: Heuristic function h(state, boat_capacity)
-        
-    Returns:
-        SearchResult object
     """
     start_time = time.time()
     
-    # Priority queue stores: (f_cost, counter, g_cost, state, path, actions)
     counter = 0
     h_initial = heuristic_func(initial_state, boat_capacity)
     pq = [(h_initial, counter, 0, initial_state, [initial_state], [])]
-    visited = {}  # Maps state -> best g_cost found
+    visited = {}
     
     nodes_expanded = 0
     max_queue_size = 1
@@ -238,30 +184,29 @@ def a_star(initial_state, boat_capacity, heuristic_func):
         f_cost, _, g_cost, current_state, path, actions = heapq.heappop(pq)
         state_tuple = current_state.to_tuple()
         
-        # Skip if we've found a better path to this state
-        if state_tuple in visited and visited[state_tuple] < g_cost:
+        if state_tuple in visited and visited[state_tuple] <= g_cost:
             continue
         
         visited[state_tuple] = g_cost
         nodes_expanded += 1
         
-        # Check if goal
+        # Checking if goal
         if current_state.is_goal():
             time_taken = time.time() - start_time
             stats = {
                 'nodes_expanded': nodes_expanded,
                 'max_queue_size': max_queue_size,
                 'time_taken': time_taken,
-                'path_cost': g_cost
+                'path_cost': g_cost,
+                'heuristic_name': heuristic_func.__name__
             }
             return SearchResult(True, path, actions, stats)
         
-        # Expand successors
+        # Expanding successors
         for successor, action, step_cost in generate_successors(current_state, boat_capacity):
             new_g = g_cost + step_cost
             state_tuple = successor.to_tuple()
             
-            # Only add if we haven't seen this state or found a better path
             if state_tuple not in visited or visited[state_tuple] > new_g:
                 counter += 1
                 h_cost = heuristic_func(successor, boat_capacity)
@@ -280,31 +225,14 @@ def a_star(initial_state, boat_capacity, heuristic_func):
     return SearchResult(False, stats=stats)
 
 
-def ida_star(initial_state, boat_capacity, heuristic_func, max_iterations=1000):
+def ida_star(initial_state, boat_capacity, heuristic_func, max_iterations=10000):
     """
     Iterative Deepening A* Search.
-    
-    Memory-efficient variant of A* that uses iterative deepening with
-    f-cost thresholds instead of maintaining a priority queue.
-    
-    Args:
-        initial_state: Starting State object
-        boat_capacity: Boat capacity
-        heuristic_func: Heuristic function h(state, boat_capacity)
-        max_iterations: Maximum number of iterations
-        
-    Returns:
-        SearchResult object
     """
     start_time = time.time()
     
     def search(state, g_cost, threshold, path, actions, visited_in_path, stats):
-        """
-        Recursive depth-limited search.
-        
-        Returns:
-            (found, new_threshold, result_path, result_actions)
-        """
+        # Recursive depth-limited search
         f_cost = g_cost + heuristic_func(state, boat_capacity)
         
         if f_cost > threshold:
@@ -320,7 +248,6 @@ def ida_star(initial_state, boat_capacity, heuristic_func, max_iterations=1000):
         for successor, action, step_cost in generate_successors(state, boat_capacity):
             state_tuple = successor.to_tuple()
             
-            # Avoid cycles in current path
             if state_tuple in visited_in_path:
                 continue
             
@@ -342,7 +269,6 @@ def ida_star(initial_state, boat_capacity, heuristic_func, max_iterations=1000):
         
         return False, min_threshold, None, None
     
-    # Initialize threshold with heuristic estimate
     threshold = heuristic_func(initial_state, boat_capacity)
     stats = {'nodes_expanded': 0, 'iterations': 0}
     
@@ -362,35 +288,180 @@ def ida_star(initial_state, boat_capacity, heuristic_func, max_iterations=1000):
             return SearchResult(True, path, actions, stats)
         
         if threshold == float('inf'):
-            break  # No solution exists
+            break
     
-    # No solution found
     time_taken = time.time() - start_time
     stats['time_taken'] = time_taken
     return SearchResult(False, stats=stats)
 
 
-# Dictionary mapping algorithm names to functions
+def bidirectional_bfs(initial_state, boat_capacity):
+    """
+    Bidirectional BFS
+    """
+    start_time = time.time()
+    
+    # Building goal state
+    cls = initial_state.__class__
+    if hasattr(cls, "goal_state") and callable(getattr(cls, "goal_state")):
+        goal_state = cls.goal_state(initial_state)
+    else:
+        # Fallback construction
+        goal_state = cls(
+            0, 0, 'R',
+            initial_state.total_M, initial_state.total_C,
+            0 if hasattr(initial_state, 'has_soldiers') and initial_state.has_soldiers else None,
+            initial_state.total_S if hasattr(initial_state, 'total_S') else 0
+        )
+    
+    # Checking if goal
+    if initial_state.is_goal():
+        return SearchResult(True, [initial_state], [], {
+            "nodes_expanded": 0,
+            "max_queue_size": 1,
+            "time_taken": 0.0,
+            "path_cost": 0
+        })
+    
+    def key(s):
+        return s.to_tuple()
+    
+    start_k = key(initial_state)
+    goal_k = key(goal_state)
+    
+    # Forward and backward frontiers
+    qf = deque([initial_state])
+    qb = deque([goal_state])
+    
+    # Parent tracking
+    parent_f = {start_k: None}
+    parent_b = {goal_k: None}
+    
+    # State storage for reconstruction
+    state_f = {start_k: initial_state}
+    state_b = {goal_k: goal_state}
+    
+    nodes_expanded = 0
+    max_frontier = 2
+    meet_k = None
+    
+    def expand_one(q, parent_this, parent_other, state_this):
+        nonlocal nodes_expanded, meet_k
+        cur = q.popleft()
+        nodes_expanded += 1
+        ck = key(cur)
+        
+        for succ, _, _ in generate_successors(cur, boat_capacity):
+            sk = key(succ)
+            if sk in parent_this:
+                continue
+            
+            parent_this[sk] = ck
+            state_this[sk] = succ
+            
+            if sk in parent_other:
+                meet_k = sk
+                return
+            
+            q.append(succ)
+    
+    while qf and qb and meet_k is None:
+        max_frontier = max(max_frontier, len(qf) + len(qb))
+        
+        # Expanding from smaller frontier
+        if len(qf) <= len(qb):
+            expand_one(qf, parent_f, parent_b, state_f)
+        else:
+            expand_one(qb, parent_b, parent_f, state_b)
+    
+    # No solution found
+    if meet_k is None:
+        time_taken = time.time() - start_time
+        return SearchResult(False, stats={
+            "nodes_expanded": nodes_expanded,
+            "max_queue_size": max_frontier,
+            "time_taken": time_taken
+        })
+    
+    # Reconstruct path: start -> meet
+    path_keys = []
+    cur = meet_k
+    while cur is not None:
+        path_keys.append(cur)
+        cur = parent_f[cur]
+    path_keys.reverse()
+    path1 = [state_f[k] for k in path_keys]
+    
+    # Reconstruct path: meet -> goal
+    path_keys = []
+    cur = meet_k
+    while cur is not None:
+        path_keys.append(cur)
+        cur = parent_b[cur]
+    path2 = [state_b[k] for k in path_keys][1:]  # drop duplicate meet
+    
+    full_path = path1 + path2
+    
+    # Reconstruct actions from consecutive states
+    actions = []
+    for i in range(len(full_path) - 1):
+        actions.append(_infer_action(full_path[i], full_path[i+1]))
+    
+    time_taken = time.time() - start_time
+    return SearchResult(True, full_path, actions, {
+        "nodes_expanded": nodes_expanded,
+        "max_queue_size": max_frontier,
+        "time_taken": time_taken,
+        "path_cost": len(full_path) - 1
+    })
+
+
+def _infer_action(a, b):
+    'Helper Function'
+    def get(attr1, attr2=None, default=0):
+        if hasattr(a, attr1) and hasattr(b, attr1):
+            return getattr(a, attr1), getattr(b, attr1)
+        if attr2 and hasattr(a, attr2) and hasattr(b, attr2):
+            return getattr(a, attr2), getattr(b, attr2)
+        return default, default
+
+    M1, M2 = get("M_left", "M_L")
+    C1, C2 = get("C_left", "C_L")
+
+    if a.boat == b.boat:
+        return "Invalid move (boat didn't change sides)"
+
+    direction = f"{a.boat}->{b.boat}"
+
+    dm = M1 - M2  
+    dc = C1 - C2
+
+    if a.boat == 'R' and b.boat == 'L':
+        dm, dc = -dm, -dc
+
+    if getattr(a, "has_soldiers", False):
+        S1, S2 = get("S_left", "S_L")
+        ds = S1 - S2
+        if a.boat == 'R' and b.boat == 'L':
+            ds = -ds
+        return f"{direction}: {abs(dm)}M, {abs(dc)}C, {abs(ds)}S"
+
+    return f"{direction}: {abs(dm)}M, {abs(dc)}C"
+
+
+# Dictionary mapping: algorithm names -> functions
 ALGORITHMS = {
     'bfs': bfs,
     'ucs': ucs,
     'astar': a_star,
-    'idastar': ida_star
+    'idastar': ida_star,
+    'bidirectional': bidirectional_bfs,
 }
 
 
 def get_algorithm(name):
     """
     Get algorithm function by name.
-    
-    Args:
-        name: Algorithm name ('bfs', 'ucs', 'astar', 'idastar')
-        
-    Returns:
-        Algorithm function
-        
-    Raises:
-        ValueError: If algorithm name is invalid
     """
     if name not in ALGORITHMS:
         raise ValueError(f"Unknown algorithm: {name}. Choose from {list(ALGORITHMS.keys())}")

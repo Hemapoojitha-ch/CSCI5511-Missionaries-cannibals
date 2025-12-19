@@ -1,15 +1,13 @@
-"""
-Experiment runner for systematic algorithm comparison.
-Runs multiple instances and collects performance data.
-"""
-
 import json
 import time
 import csv
 from datetime import datetime
 from pathlib import Path
 import sys
-sys.path.append(str(Path(__file__).parent.parent / 'src'))
+
+SCRIPT_DIR = Path(__file__).parent  
+PROJECT_ROOT = SCRIPT_DIR.parent   
+DATA_DIR = PROJECT_ROOT / 'data' 
 
 from state import State
 from algorithms import ALGORITHMS
@@ -101,7 +99,7 @@ def run_single_experiment(n, b, algorithm, heuristic='h1', n_soldiers=0, timeout
 
 
 def run_experiment_grid(n_values, b_values, algorithms=None, heuristics=None, 
-                       s_values=None, timeout=60, output_dir='../data'):
+                       s_values=None, timeout=60, output_dir=None):
     """
     Run experiments across a grid of parameters.
     
@@ -117,6 +115,11 @@ def run_experiment_grid(n_values, b_values, algorithms=None, heuristics=None,
     Returns:
         List of result dictionaries
     """
+    if output_dir is None:
+        output_dir = DATA_DIR
+    else:
+        output_dir = Path(output_dir)
+
     if algorithms is None:
         algorithms = list(ALGORITHMS.keys())
     
@@ -129,7 +132,6 @@ def run_experiment_grid(n_values, b_values, algorithms=None, heuristics=None,
     results = []
     total_experiments = len(n_values) * len(b_values) * len(s_values) * len(algorithms)
     
-    # For A*/IDA*, multiply by number of heuristics
     astar_count = sum(1 for a in algorithms if a in ['astar', 'idastar'])
     if astar_count > 0:
         total_experiments = (len(algorithms) - astar_count) * len(n_values) * len(b_values) * len(s_values)
@@ -137,9 +139,8 @@ def run_experiment_grid(n_values, b_values, algorithms=None, heuristics=None,
     
     current = 0
     
-    print(f"\n{'='*70}")
-    print(f"RUNNING EXPERIMENT GRID")
-    print(f"{'='*70}")
+    print(f"\nRUNNING EXPERIMENT GRID")
+    print(f"{'-'*60}")
     print(f"Total experiments: {total_experiments}")
     print(f"n values: {n_values}")
     print(f"b values: {b_values}")
@@ -147,14 +148,14 @@ def run_experiment_grid(n_values, b_values, algorithms=None, heuristics=None,
     print(f"algorithms: {algorithms}")
     if astar_count > 0:
         print(f"heuristics: {heuristics}")
-    print(f"{'='*70}\n")
+    print(f"{'-'*60}\n")
     
     for n in n_values:
         for b in b_values:
             for s in s_values:
                 for algo in algorithms:
                     if algo in ['astar', 'idastar']:
-                        # Test with each heuristic
+                        # Testing with each heuristic
                         for heur in heuristics:
                             current += 1
                             print(f"[{current}/{total_experiments}] n={n}, b={b}, s={s}, {algo}, {heur}...", end=' ')
@@ -162,7 +163,7 @@ def run_experiment_grid(n_values, b_values, algorithms=None, heuristics=None,
                             result = run_single_experiment(n, b, algo, heur, s, timeout)
                             results.append(result)
                             
-                            status = "✓" if result['success'] else "✗"
+                            status = "Yes" if result['success'] else "No"
                             print(f"{status} ({result['time']:.3f}s, {result['nodes_expanded']} nodes)")
                     else:
                         # Non-heuristic algorithms
@@ -172,21 +173,21 @@ def run_experiment_grid(n_values, b_values, algorithms=None, heuristics=None,
                         result = run_single_experiment(n, b, algo, n_soldiers=s, timeout=timeout)
                         results.append(result)
                         
-                        status = "✓" if result['success'] else "✗"
+                        status = "Yes" if result['success'] else "No"
                         print(f"{status} ({result['time']:.3f}s, {result['nodes_expanded']} nodes)")
     
-    # Save results
+    # Saving results
     Path(output_dir).mkdir(parents=True, exist_ok=True)
     
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     
-    # Save as JSON
+    # Saving as JSON
     json_path = Path(output_dir) / f"results_{timestamp}.json"
     with open(json_path, 'w') as f:
         json.dump(results, f, indent=2)
     print(f"\nResults saved to {json_path}")
     
-    # Save as CSV
+    # Saving as CSV
     csv_path = Path(output_dir) / f"results_{timestamp}.csv"
     if results:
         fieldnames = results[0].keys()
@@ -200,17 +201,10 @@ def run_experiment_grid(n_values, b_values, algorithms=None, heuristics=None,
 
 
 def print_summary(results):
-    """
-    Print summary statistics from experiment results.
-    
-    Args:
-        results: List of result dictionaries
-    """
-    print(f"\n{'='*70}")
-    print("EXPERIMENT SUMMARY")
-    print(f"{'='*70}\n")
-    
-    # Group by algorithm
+    print("\nEXPERIMENT SUMMARY")
+    print(f"{'-'*60}")
+
+    # Grouping by algorithm
     by_algo = {}
     for r in results:
         key = r['algorithm']
@@ -221,7 +215,7 @@ def print_summary(results):
             by_algo[key] = []
         by_algo[key].append(r)
     
-    # Print statistics for each algorithm
+    # Statistics for each algorithm
     for algo, algo_results in sorted(by_algo.items()):
         successful = [r for r in algo_results if r['success']]
         
@@ -243,38 +237,28 @@ def print_summary(results):
 
 
 if __name__ == '__main__':
-    # Example experiment configurations
+    # Example experiment configuration
     
-    # Quick test
+    # Standard grid (without soldier)
+
     # results = run_experiment_grid(
-    #     n_values=[3],
-    #     b_values=[2],
-    #     s_values=[0],
-    #     algorithms=['bfs', 'astar'],
-    #     heuristics=['h1', 'h2'],
-    #     timeout=30
-    # )
-    
-    # Standard grid (from proposal)
-    results = run_experiment_grid(
-        n_values=[3, 4, 5],
-        b_values=[2, 3],
-        s_values=[0],
-        algorithms=['bfs', 'ucs', 'astar', 'idastar'],
-        heuristics=['h1', 'h2', 'h3'],
-        timeout=60
-    )
-    
-    print_summary(results)
-    
-    # Extended grid with soldiers
-    # results_soldiers = run_experiment_grid(
-    #     n_values=[3, 4],
+    #     n_values=[3, 4, 5],
     #     b_values=[2, 3],
-    #     s_values=[2],
-    #     algorithms=['bfs', 'astar'],
-    #     heuristics=['h1', 'h2'],
-    #     timeout=120
+    #     s_values=[0],
+    #     algorithms=['bfs', 'ucs', 'astar', 'idastar', 'bidirectional'],
+    #     heuristics=['h1', 'h2', 'h3', 'h4', 'h5', 'h6'],
+    #     timeout=60
     # )
+    # print_summary(results)
     
-    # print_summary(results_soldiers)
+
+    # Grid with soldiers
+    results_soldiers = run_experiment_grid(
+        n_values=[3, 4, 5, 6],
+        b_values=[2, 3, 4],
+        s_values=[0, 1, 2],
+        algorithms=['bfs', 'ucs', 'astar', 'idastar', 'bidirectional'],
+        heuristics=[ 'h1', 'h2', 'h3', 'h4', 'h5', 'h6'],
+        timeout=120
+    )
+    print_summary(results_soldiers)

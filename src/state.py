@@ -1,6 +1,5 @@
 """
 State representation for the Missionaries and Cannibals problem.
-Supports both 2-group (M, C) and 3-group (M, C, S) variants.
 """
 
 class State:
@@ -21,10 +20,10 @@ class State:
         Args:
             missionaries_left: Number of missionaries on left bank
             cannibals_left: Number of cannibals on left bank
-            boat_side: 'L' or 'R' indicating boat location
+            boat_side: 'L' or 'R' specifies boat location
             total_missionaries: Total missionaries in problem
             total_cannibals: Total cannibals in problem
-            soldiers_left: Number of soldiers on left (None for 2-group variant)
+            soldiers_left: Number of soldiers on left
             total_soldiers: Total soldiers in problem
         """
         self.M_left = missionaries_left
@@ -36,55 +35,60 @@ class State:
         self.total_C = total_cannibals
         self.total_S = total_soldiers
         
-        # Calculate right bank
+        # Calculating right bank 
         self.M_right = total_missionaries - missionaries_left
         self.C_right = total_cannibals - cannibals_left
         self.S_right = total_soldiers - soldiers_left if soldiers_left is not None else 0
         
-        # Track if this is 3-group variant
+        # Checking if soldiers are included in the problem
         self.has_soldiers = soldiers_left is not None
     
+
     def is_legal(self):
         """
         Check if the current state is legal.
         
         2-group rule: On each bank, if missionaries > 0, then missionaries >= cannibals
         3-group rule: On each bank, if missionaries > 0 and soldiers == 0, then missionaries >= cannibals
-                      (soldiers protect missionaries from being outnumbered)
         """
         if self.has_soldiers:
-            # Left bank check
+            # Checking Left bank
             if self.M_left > 0 and self.S_left == 0 and self.M_left < self.C_left:
                 return False
-            # Right bank check
+            # Checking Right bank
             if self.M_right > 0 and self.S_right == 0 and self.M_right < self.C_right:
                 return False
         else:
-            # Standard 2-group rules
-            # Left bank check
             if self.M_left > 0 and self.M_left < self.C_left:
                 return False
-            # Right bank check
             if self.M_right > 0 and self.M_right < self.C_right:
                 return False
         
         return True
     
+
     def is_goal(self):
-        """Check if this is the goal state (everyone on right bank)."""
+        """
+        Check if this is the goal state. 
+        """
         if self.has_soldiers:
             return self.M_left == 0 and self.C_left == 0 and self.S_left == 0 and self.boat == 'R'
         else:
             return self.M_left == 0 and self.C_left == 0 and self.boat == 'R'
     
+
     def __hash__(self):
-        """Hash for use in sets and dictionaries."""
+        """
+        Helper Function.
+        """
         if self.has_soldiers:
             return hash((self.M_left, self.C_left, self.S_left, self.boat))
         return hash((self.M_left, self.C_left, self.boat))
     
     def __eq__(self, other):
-        """Equality comparison."""
+        """
+        Helper function - Checking if two states are identical.
+        """
         if not isinstance(other, State):
             return False
         if self.has_soldiers:
@@ -97,20 +101,26 @@ class State:
                 self.boat == other.boat)
     
     def __lt__(self, other):
-        """Less than comparison for priority queue."""
+        """
+        Helper function - Less than comparison for priority queue.
+        """
         if self.has_soldiers:
             return (self.M_left, self.C_left, self.S_left, self.boat) < \
                    (other.M_left, other.C_left, other.S_left, other.boat)
         return (self.M_left, self.C_left, self.boat) < (other.M_left, other.C_left, other.boat)
     
     def __repr__(self):
-        """String representation for debugging."""
+        """
+        Helper function - String Represenatation.
+        """
         if self.has_soldiers:
             return f"State(M={self.M_left}, C={self.C_left}, S={self.S_left}, boat={self.boat})"
         return f"State(M={self.M_left}, C={self.C_left}, boat={self.boat})"
     
     def to_tuple(self):
-        """Convert state to tuple for hashing."""
+        """
+        Helper function.
+        """
         if self.has_soldiers:
             return (self.M_left, self.C_left, self.S_left, self.boat)
         return (self.M_left, self.C_left, self.boat)
@@ -119,9 +129,6 @@ class State:
         """
         Display one side of the river with symbols.
         
-        Args:
-            side: 'L' or 'R'
-            
         Returns:
             String representation of that bank
         """
@@ -134,7 +141,7 @@ class State:
             c_count = self.C_right
             s_count = self.S_right if self.has_soldiers else 0
         
-        # Use symbols: M=👨, C=👹, S=🛡️
+        # Using symbols: M=👨, C=👹, S=🛡️
         display = ""
         display += "👨" * m_count
         display += " " if m_count > 0 and c_count > 0 else ""
@@ -147,15 +154,17 @@ class State:
         return display if display else "(empty)"
     
     def display_boat(self):
-        """Display boat position indicator."""
+        """
+        Display boat position.
+        """
         if self.boat == 'L':
             return "🚣"
         else:
-            return "     "  # Empty space when boat is on right
+            return "     " 
     
     def display_state(self, step_num=None, action_desc=""):
         """
-        Display the current state visually.
+        Display the current state.
         
         Args:
             step_num: Step number to display
@@ -163,10 +172,10 @@ class State:
         """
         header = ""
         if step_num is not None:
-            header = f"\n{'='*70}\nStep {step_num}"
+            header = f"Step {step_num}"
             if action_desc:
                 header += f": {action_desc}"
-            header += f"\n{'='*70}"
+            header += f"\n{'-'*60}"
             print(header)
         
         left_display = self.display_side('L')
@@ -174,23 +183,23 @@ class State:
         boat_display = self.display_boat() if self.boat == 'L' else "     "
         boat_right = "     🚣" if self.boat == 'R' else ""
         
-        # Create visual representation
+        # Creating visual representation
         print(f"\nLeft Bank{' '*10}River{' '*10}Right Bank")
         print(f"{'-'*20}  ~~~~  {'-'*20}")
         print(f"{left_display:20}  {boat_display}~~~~{boat_right:6}  {right_display:20}")
         print(f"{'-'*20}  ~~~~  {'-'*20}")
         
-        # Show counts
+        # Display Missionaries and Cannibals count on both banks
         if self.has_soldiers:
-            print(f"\nLeft: {self.M_left}M, {self.C_left}C, {self.S_left}S  |  " +
+            print(f"Left: {self.M_left}M, {self.C_left}C, {self.S_left}S  |  " +
                   f"Right: {self.M_right}M, {self.C_right}C, {self.S_right}S")
         else:
-            print(f"\nLeft: {self.M_left}M, {self.C_left}C  |  Right: {self.M_right}M, {self.C_right}C")
+            print(f"Left: {self.M_left}M, {self.C_left}C  |  Right: {self.M_right}M, {self.C_right}C")
         
-        # Check legality
-        legal_status = "✓ LEGAL" if self.is_legal() else "✗ ILLEGAL"
-        goal_status = " (GOAL STATE)" if self.is_goal() else ""
-        print(f"Status: {legal_status}{goal_status}\n")
+        print()
+        if self.is_goal():
+            print(f"Status: Goal State Reached!\n")
+        print(f'-'*60)
 
 
 def generate_successors(state, boat_capacity):
@@ -206,7 +215,7 @@ def generate_successors(state, boat_capacity):
     """
     successors = []
     
-    # Determine direction
+    # Determining direction
     if state.boat == 'L':
         # Boat moving from left to right
         moving_from = 'L'
@@ -216,7 +225,7 @@ def generate_successors(state, boat_capacity):
         moving_from = 'R'
         moving_to = 'L'
     
-    # Get available people on the boat's current side
+    # Available people on the boat's current side
     if moving_from == 'L':
         available_M = state.M_left
         available_C = state.C_left
@@ -226,7 +235,7 @@ def generate_successors(state, boat_capacity):
         available_C = state.C_right
         available_S = state.S_right if state.has_soldiers else 0
     
-    # Generate all possible moves
+    # Generating all possible moves
     # At least 1 person must be in the boat
     max_range = boat_capacity + 1
     
@@ -241,7 +250,7 @@ def generate_successors(state, boat_capacity):
                     if total_people < 1 or total_people > boat_capacity:
                         continue
                     
-                    # Create new state
+                    # Creating new state
                     if moving_from == 'L':
                         new_M_left = state.M_left - m
                         new_C_left = state.C_left - c
@@ -255,10 +264,10 @@ def generate_successors(state, boat_capacity):
                                      state.total_M, state.total_C,
                                      new_S_left, state.total_S)
                     
-                    # Only add if legal
+                    # Only adding if legal
                     if new_state.is_legal():
                         action = f"Move {m}M, {c}C, {s}S from {moving_from} to {moving_to}"
-                        cost = total_people  # Cost = number of people moved
+                        cost = total_people  
                         successors.append((new_state, action, cost))
     else:
         # 2-group variant: try all combinations of M and C
@@ -270,7 +279,7 @@ def generate_successors(state, boat_capacity):
                 if total_people < 1 or total_people > boat_capacity:
                     continue
                 
-                # Create new state
+                # Creating new state
                 if moving_from == 'L':
                     new_M_left = state.M_left - m
                     new_C_left = state.C_left - c
@@ -281,10 +290,10 @@ def generate_successors(state, boat_capacity):
                 new_state = State(new_M_left, new_C_left, moving_to,
                                  state.total_M, state.total_C)
                 
-                # Only add if legal
+                # Only adding if legal
                 if new_state.is_legal():
                     action = f"Move {m}M, {c}C from {moving_from} to {moving_to}"
-                    cost = total_people  # Cost = number of people moved
+                    cost = total_people  
                     successors.append((new_state, action, cost))
     
     return successors
